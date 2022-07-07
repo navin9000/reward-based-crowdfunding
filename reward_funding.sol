@@ -12,7 +12,7 @@ contract Funding is ERC721{
     mapping(address => uint) investors;                   // investors history
     mapping(address => bool) aleardyInvestor;             // sotres aleardy investors history
     address payable manager;
-    uint public totalAmt;
+    uint public totalAmt=0;         //intial total amount
     uint public noOfInvestors;
     uint public goalAmt;
     uint public goalTime;
@@ -39,6 +39,7 @@ contract Funding is ERC721{
 
      //function modifier fund to manger
      modifier fundToManager{
+         require(msg.sender==manager); // only manager can call this function 
         require(block.timestamp > endTime && totalAmt >= goalAmt); 
         require(investors[msg.sender] <= 0,"claimed aleardy");
         _;
@@ -53,9 +54,9 @@ contract Funding is ERC721{
     //constructor for intializing manager 
     //goal time in days
     constructor(uint _amt,uint _time) ERC721("Mini project","MN"){
-        goalAmt=_amt;
-        goalTime=_time;
-        endTime=block.timestamp + (((goalTime*25)*60)*60);  // time in days as input    
+        goalAmt=_amt*10**18;                     //goal amt is taking in ether and converting it to wei
+        goalTime=_time;                       // contract works with smallest units
+        endTime=block.timestamp + goalTime;//(((goalTime*25)*60)*60);  // time in days as input    
         manager=payable(msg.sender);                        //contract ---> deploy address 
     }
 
@@ -64,14 +65,14 @@ contract Funding is ERC721{
     function toGetFunds() external payable checkInvestor{
         if(!aleardyInvestor[msg.sender]){                 // checks for new investors
             investors[msg.sender]=msg.value;
-            totalAmt+=msg.value;
+            totalAmt=totalAmt + msg.value;
             noOfInvestors+=1;                             //number of investors here 
             aleardyInvestor[msg.sender]=true;  // adding him in the investors mapping
             claims[msg.sender]=true;           // this for the condition checking in nft claims
         }
         else{                                             // aleardy investors here works
-            investors[msg.sender]=msg.value+investors[msg.sender];
-            totalAmt+=msg.value;
+            investors[msg.sender]=msg.value + investors[msg.sender];
+            totalAmt=totalAmt + msg.value;
         }
         emit invested(msg.sender,msg.value);
     }
@@ -96,7 +97,7 @@ contract Funding is ERC721{
 
 
     //to check the amount required
-    function amntRequired()internal view returns(uint a){
+    function amntRequired()public view returns(uint a){
         if(totalAmt < goalAmt){
             return (goalAmt-totalAmt);
         }
@@ -111,6 +112,13 @@ contract Funding is ERC721{
         _mint(msg.sender,tokenId);
         claims[msg.sender]=false;
         tokenId+=1;
+    }
+
+
+
+    //contract balance
+    function contractBalance()public view returns(uint ){
+        return address(this).balance;
     }
 
 }
